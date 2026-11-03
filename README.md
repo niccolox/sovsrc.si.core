@@ -158,7 +158,7 @@ stateDiagram-v2
 ```mermaid
 graph TB
     subgraph "Server"
-        DO[Durable Object<br/>Room: dashboard-{id}]
+        DO["Durable Object<br/>Room: dashboard-{id}"]
         DOStorage[(DO Storage<br/>SQLite)]
         WSHandler[WebSocket Handler]
     end
@@ -180,7 +180,7 @@ graph TB
     WSHandler <--> DO
     DO <--> DOStorage
     Queue --> Worker
-    Worker --> DO: Broadcast Update
+    Worker -->|Broadcast Update| DO
 ```
 
 ## Deployment Pipeline
