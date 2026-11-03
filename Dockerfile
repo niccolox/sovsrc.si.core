@@ -38,7 +38,7 @@ COPY --from=deps /big/parts/libtorch_cpu.so.part1 /parts/
 COPY --from=deps /big/parts/libtorch_cpu.so.part2 /parts/
 COPY --from=deps /big/parts/libtorch_cpu.so.part3 /parts/
 
-COPY hello_rewards.py server.py unified_hello.py macbeth.json entrypoint.sh ./
+COPY hello_rewards.py server.py unified_hello.py rewards_mcp.py mcp_stdio.py macbeth.json entrypoint.sh ./
 COPY templates/ ./templates/
 
 ENV PORT=8000

@@ -26,6 +26,8 @@ from torch.utils.data import TensorDataset, DataLoader
 import lightning as L
 from lightning.pytorch import LightningModule, Trainer
 
+from rewards_mcp import build_mcp, build_http_app
+
 # Jinja2 setup
 from jinja2 import Environment, FileSystemLoader
 template_env = Environment(loader=FileSystemLoader("templates"))
@@ -111,9 +113,21 @@ seed_content()
 seed_macbeth()
 
 
+# MCP server on the same stores and models. Mounted at /mcp below.
+mcp = build_mcp(content_store, output_store, reward_events)
+mcp_http_app = build_http_app(mcp)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with mcp.session_manager.run():
+        yield
+
+
 app = FastAPI(
     title="Sovereign Source Content Rewards API",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 
@@ -654,6 +668,11 @@ async def demo_unified():
             for contributor, total in sorted(total_by_contributor.items(), key=lambda x: -x[1])
         },
     }
+
+
+# Mount the MCP app last. It owns only the /mcp path. A mount at /mcp with
+# an inner root path would answer POST /mcp with a redirect to /mcp/.
+app.mount("/", mcp_http_app)
 
 
 if __name__ == "__main__":

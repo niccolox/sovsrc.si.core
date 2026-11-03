@@ -1,4 +1,4 @@
-.PHONY: install test run run-server run-unified clean docker-build deploy
+.PHONY: install test run run-server run-unified run-mcp clean docker-build deploy
 
 install:
 	@pip install -q -r requirements.txt 2>/dev/null || true
@@ -14,6 +14,9 @@ run-server:
 
 run-unified:
 	@python unified_hello.py
+
+run-mcp:
+	@python mcp_stdio.py
 
 clean:
 	rm -rf __pycache__ .pytest_cache

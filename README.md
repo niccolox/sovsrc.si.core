@@ -181,6 +181,39 @@ license and a contributor.
 The server seeds three content units and 16 Macbeth speeches from
 `macbeth.json` at start.
 
+## MCP server
+
+The service is also an MCP server. The tools work on the same stores and
+the same Pydantic models as the REST API, so every tool returns a
+schema-valid object. The code is in `rewards_mcp.py`.
+
+| Transport | Endpoint |
+| --- | --- |
+| Streamable HTTP | `https://hello.sovsrc.si/mcp` (stateless, JSON responses) |
+| stdio | `python mcp_stdio.py` |
+
+Add it to Claude Code:
+
+```bash
+claude mcp add --transport http sovsrc-rewards https://hello.sovsrc.si/mcp
+# or local stdio
+claude mcp add sovsrc-rewards -- python /path/to/sovsrc.si.core/mcp_stdio.py
+```
+
+| Tool | Purpose |
+| --- | --- |
+| `list_licenses` | License types with factor and license text URL |
+| `list_content` | List content units. Filter by `license` or `id_prefix` |
+| `get_content` | Get one content unit by id |
+| `add_content` | Add a content unit |
+| `record_model_output` | Record a model output with citations |
+| `calculate_reward_event` | Pay a pool for one recorded output |
+| `get_ledger` | List all reward events |
+| `get_contributor_earnings` | Sum the earnings of one contributor |
+| `leaderboard` | Rank contributors over content units with an id prefix |
+
+Resource `sovsrc://ontology` returns the JSON schema of the models.
+
 ## Run locally
 
 ```bash
@@ -188,6 +221,7 @@ make install        # install Python dependencies
 make test           # run hello_rewards.py
 make run-unified    # run the training demo
 make run-server     # start the API on http://localhost:8000
+make run-mcp        # start the MCP server over stdio
 ./run_curl_examples.sh
 ```
 
@@ -225,7 +259,9 @@ Notes:
 | --- | --- |
 | `hello_rewards.py` | Pydantic models, license factors, `calculate_rewards`, worked example |
 | `unified_hello.py` | Lightning training loop with per-epoch rewards |
-| `server.py` | FastAPI app, in-memory stores, HTMX routes, README page |
+| `server.py` | FastAPI app, in-memory stores, HTMX routes, README page, MCP mount |
+| `rewards_mcp.py` | MCP tools and resource on the same stores and models |
+| `mcp_stdio.py` | Run the MCP server over stdio |
 | `templates/` | Jinja2 templates for the HTMX UI |
 | `macbeth.json` | Seed content: Macbeth speeches with per-speech licenses |
 | `src/index.ts` | Cloudflare Worker that routes to the container |

@@ -7,3 +7,4 @@ pydantic-settings
 fastapi
 uvicorn[standard]
 jinja2
+mcp>=2,<3
