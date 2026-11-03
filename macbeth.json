@@ -1,0 +1,138 @@
+{
+  "play": "The Tragedy of Macbeth",
+  "author": "William Shakespeare",
+  "characters": [
+    {
+      "name": "Macbeth",
+      "role": "General of the King's army; Thane of Glamis/Cawdor; King of Scotland",
+      "key_speeches": [
+        {
+          "act": "I, Scene 3",
+          "line": "Your children shall be kings.",
+          "context": "Responding to the witches' prophecy.",
+          "license": "sovsrc-rewards-v1"
+        },
+        {
+          "act": "II, Scene 2",
+          "line": "Methought I heard a voice cry 'Sleep no more! Macbeth does murder sleep'",
+          "context": "After murdering King Duncan.",
+          "license": "cc-by-4.0"
+        },
+        {
+          "act": "III, Scene 4",
+          "line": "Avaunt! and quit my sight! let the earth hide thee!",
+          "context": "Seeing the ghost of Banquo at the banquet.",
+          "license": "proprietary-opt-in"
+        },
+        {
+          "act": "V, Scene 7",
+          "line": "My name's Macbeth.",
+          "context": "Identifying himself to Young Siward.",
+          "license": "public-domain"
+        }
+      ]
+    },
+    {
+      "name": "Lady Macbeth",
+      "role": "Macbeth's wife; Queen of Scotland",
+      "key_speeches": [
+        {
+          "act": "I, Scene 5",
+          "line": "Come, you spirits That tend on mortal thoughts, unsex me here, And fill me from the crown to the toe top-full Of direst cruelty!",
+          "context": "Invoking spirits to remove her femininity and compassion.",
+          "license": "sovsrc-rewards-v1"
+        },
+        {
+          "act": "II, Scene 2",
+          "line": "My hands are of your colour; but I shame To wear a heart so white.",
+          "context": "Rebuking Macbeth for his guilt after the murder.",
+          "license": "cc-by-4.0"
+        },
+        {
+          "act": "III, Scene 4",
+          "line": "Sit, worthy friends: my lord is often thus, And hath been from his youth:",
+          "context": "Trying to cover for Macbeth's erratic behavior at the banquet.",
+          "license": "proprietary-opt-in"
+        },
+        {
+          "act": "V, Scene 1",
+          "line": "Yet here's a spot.",
+          "context": "Sleepwalking scene, lamenting her guilt.",
+          "license": "public-domain"
+        }
+      ]
+    },
+    {
+      "name": "Banquo",
+      "role": "General of the King's army; Macbeth's friend",
+      "key_speeches": [
+        {
+          "act": "I, Scene 3",
+          "line": "Were such things here as we do speak about? Or have we eaten on the insane root That takes the reason prisoner?",
+          "context": "Questioning the reality of the witches' appearance.",
+          "license": "cc-by-4.0"
+        },
+        {
+          "act": "I, Scene 3",
+          "line": "You shall be king.",
+          "context": "Addressing Macbeth regarding the prophecy.",
+          "license": "proprietary-opt-in"
+        }
+      ]
+    },
+    {
+      "name": "Duncan",
+      "role": "King of Scotland",
+      "key_speeches": [
+        {
+          "act": "I, Scene 4",
+          "line": "I have begun to plant thee, and will labour To make thee full of growing.",
+          "context": "Rewarding Macbeth with the title Thane of Cawdor.",
+          "license": "sovsrc-rewards-v1"
+        },
+        {
+          "act": "I, Scene 6",
+          "line": "This castle hath a pleasant seat; the air Nimbly and sweetly recommends itself Unto our gentle senses.",
+          "context": "Arriving at Macbeth's castle.",
+          "license": "public-domain"
+        }
+      ]
+    },
+    {
+      "name": "Macduff",
+      "role": "Thane of Fife; Scottish Noble",
+      "key_speeches": [
+        {
+          "act": "II, Scene 3",
+          "line": "Who can be wise, amazed, temperate and furious, Loyal and neutral, in a moment? No man:",
+          "context": "Reacting to the discovery of Duncan's murder.",
+          "license": "cc-by-4.0"
+        },
+        {
+          "act": "IV, Scene 3",
+          "line": "Fled to England!",
+          "context": "Informing Macbeth that Macduff has fled.",
+          "license": "sovsrc-rewards-v1"
+        }
+      ]
+    },
+    {
+      "name": "Macduff's Son",
+      "role": "Young boy; son of Macduff",
+      "key_speeches": [
+        {
+          "act": "IV, Scene 2",
+          "line": "As birds do, mother.",
+          "context": "Explaining how he will live after his father's death.",
+          "license": "public-domain"
+        },
+        {
+          "act": "IV, Scene 2",
+          "line": "What is a traitor?",
+          "context": "Questioning his mother about the definition of a traitor.",
+          "license": "cc-by-4.0"
+        }
+      ]
+    }
+  ]
+}

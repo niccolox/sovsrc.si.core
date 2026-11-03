@@ -1,0 +1,137 @@
+{% if not request.headers.get('HX-Request') %}
+{% extends "base.html" %}
+{% endif %}
+
+{% block title %}Macbeth Leaderboard - Sovereign Source API{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>🏆 Macbeth Speeches Leaderboard</h2>
+        <span class="endpoint-badge">GET /rewards/ledger + /content?filter=macbeth</span>
+    </div>
+    <p>Top contributors ranked by total reward earnings from Macbeth speech attributions.</p>
+    
+    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+        <button hx-get="/leaderboard/macbeth" hx-target="#leaderboard-result">Load Leaderboard</button>
+        <button hx-get="/leaderboard/macbeth?pool=100" hx-target="#leaderboard-result" class="btn-secondary">Pool: 100</button>
+        <button hx-get="/leaderboard/macbeth?pool=1000" hx-target="#leaderboard-result" class="btn-secondary">Pool: 1,000</button>
+        <button hx-get="/leaderboard/macbeth?pool=10000" hx-target="#leaderboard-result" class="btn-secondary">Pool: 10,000</button>
+    </div>
+    
+    <div id="leaderboard-result" class="output">
+        <p class="text-muted">Click "Load Leaderboard" to calculate rankings...</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>📊 Macbeth Speech Values by License</h2>
+    </div>
+    <p>Each speech's potential reward value based on its license factor (assuming equal attribution).</p>
+    <button hx-get="/leaderboard/macbeth/values" hx-target="#speech-values">Load Speech Values</button>
+    <div id="speech-values" class="output" style="margin-top: 15px;">
+        <p class="text-muted">Click to load speech values...</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>🎭 Character Earnings Comparison</h2>
+    </div>
+    <p>Total potential earnings per character across all their speeches.</p>
+    <button hx-get="/leaderboard/macbeth/characters" hx-target="#character-earnings">Load Character Earnings</button>
+    <div id="character-earnings" class="output" style="margin-top: 15px;">
+        <p class="text-muted">Click to load character earnings...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('htmx:afterSwap', function(evt) {
+        const target = evt.target;
+        
+        if (target.id === 'leaderboard-result') {
+            try {
+                const data = JSON.parse(target.textContent);
+                if (data.rankings) {
+                    target.innerHTML = renderLeaderboardTable(data);
+                }
+            } catch (e) {}
+        }
+        
+        if (target.id === 'speech-values') {
+            try {
+                const data = JSON.parse(target.textContent);
+                if (data.speeches) {
+                    target.innerHTML = renderSpeechValuesTable(data);
+                }
+            } catch (e) {}
+        }
+        
+        if (target.id === 'character-earnings') {
+            try {
+                const data = JSON.parse(target.textContent);
+                if (data.characters) {
+                    target.innerHTML = renderCharacterEarningsTable(data);
+                }
+            } catch (e) {}
+        }
+    });
+
+    function renderLeaderboardTable(data) {
+        let html = '<p><strong>Pool:</strong> ' + data.pool + ' tokens | <strong>Total Speeches:</strong> ' + data.total_speeches + '</p>';
+        html += '<table class="data-table"><thead><tr>';
+        html += '<th>Rank</th><th>Contributor</th><th>Earnings</th><th>Speeches</th>';
+        html += '</tr></thead><tbody>';
+        for (const item of data.rankings) {
+            html += '<tr>';
+            html += '<td>' + item.rank + '</td>';
+            html += '<td>' + item.contributor + '</td>';
+            html += '<td>' + parseFloat(item.earnings).toFixed(4) + '</td>';
+            html += '<td>' + item.speeches + '</td>';
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        return html;
+    }
+
+    function renderSpeechValuesTable(data) {
+        let html = '<p><strong>Pool:</strong> ' + data.pool + ' tokens | <strong>Total Speeches:</strong> ' + data.speeches.length + '</p>';
+        html += '<table class="data-table"><thead><tr>';
+        html += '<th>ID</th><th>Character</th><th>Act</th><th>License</th><th>Full Value</th><th>Preview</th>';
+        html += '</tr></thead><tbody>';
+        for (const item of data.speeches) {
+            const licenseClass = 'license-' + item.license.replace('.', '-').replace('_', '-');
+            html += '<tr>';
+            html += '<td>' + item.id + '</td>';
+            html += '<td>' + item.character + '</td>';
+            html += '<td>' + item.act + '</td>';
+            html += '<td><span class="license-badge ' + licenseClass + '">' + item.license + '</span></td>';
+            html += '<td>' + parseFloat(item.full_value).toFixed(4) + '</td>';
+            html += '<td>' + item.text_preview + '...</td>';
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        return html;
+    }
+
+    function renderCharacterEarningsTable(data) {
+        let html = '<p><strong>Pool:</strong> ' + data.pool + ' tokens</p>';
+        html += '<table class="data-table"><thead><tr>';
+        html += '<th>Rank</th><th>Character</th><th>Total Value</th><th>Speech Count</th>';
+        html += '</tr></thead><tbody>';
+        for (const item of data.characters) {
+            html += '<tr>';
+            html += '<td>' + item.rank + '</td>';
+            html += '<td>' + item.character + '</td>';
+            html += '<td>' + parseFloat(item.total_value).toFixed(4) + '</td>';
+            html += '<td>' + item.speech_count + '</td>';
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        return html;
+    }
+</script>
+{% endblock %}

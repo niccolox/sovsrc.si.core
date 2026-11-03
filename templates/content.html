@@ -1,0 +1,77 @@
+{% if not request.headers.get('HX-Request') %}
+{% extends "base.html" %}
+{% endif %}
+
+{% block title %}Content Units - Sovereign Source API{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>📚 Content Units</h2>
+        <span class="endpoint-badge">GET /content</span>
+    </div>
+    <button hx-get="/content" hx-target="#content-result" class="htmx-indicator">Loading all content...</button>
+    <div id="content-result" class="output"><pre class="json-output">Click to load all content units...</pre></div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>🔍 Filter by License</h2>
+        <span class="endpoint-badge">GET /content + jq filter</span>
+    </div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+        <button hx-get="/content?license=sovsrc-rewards-v1" hx-target="#license-result" class="license-badge license-sovsrc">sovsrc-rewards-v1 (factor 1.0)</button>
+        <button hx-get="/content?license=cc-by-4.0" hx-target="#license-result" class="license-badge license-ccby">cc-by-4.0 (factor 0.1)</button>
+        <button hx-get="/content?license=proprietary-opt-in" hx-target="#license-result" class="license-badge license-proprietary">proprietary-opt-in (factor 0.5)</button>
+        <button hx-get="/content?license=public-domain" hx-target="#license-result" class="license-badge license-public">public-domain (factor 0.0)</button>
+    </div>
+    <div id="license-result" class="output"><pre class="json-output">Select a license filter...</pre></div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>➕ Ingest New Content</h2>
+        <span class="endpoint-badge">POST /content</span>
+    </div>
+    <form hx-post="/content" hx-target="#ingest-result" hx-swap="innerHTML" class="grid">
+        <div class="form-group">
+            <label>Text *</label>
+            <textarea name="text" required placeholder="Enter content text..."></textarea>
+        </div>
+        <div class="form-group">
+            <label>Source URI (License URL) *</label>
+            <input type="url" name="source_uri" required placeholder="https://creativecommons.org/licenses/by/4.0/">
+        </div>
+        <div class="form-group">
+            <label>License *</label>
+            <select name="license" required>
+                <option value="sovsrc-rewards-v1">sovsrc-rewards-v1 (factor 1.0)</option>
+                <option value="cc-by-4.0">cc-by-4.0 (factor 0.1)</option>
+                <option value="proprietary-opt-in">proprietary-opt-in (factor 0.5)</option>
+                <option value="public-domain">public-domain (factor 0.0)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Contributor ID *</label>
+            <input type="text" name="contributor_id" required placeholder="alice">
+        </div>
+        <div class="form-group">
+            <label>Metadata (JSON)</label>
+            <textarea name="metadata" placeholder='{"domain": "physics", "quality_score": 0.95}'></textarea>
+        </div>
+        <div style="grid-column: 1 / -1;">
+            <button type="submit" class="htmx-indicator">Ingesting...</button>
+        </div>
+    </form>
+    <div id="ingest-result" class="output" style="margin-top: 15px;"></div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>📖 Macbeth Speeches (16)</h2>
+        <span class="endpoint-badge">GET /content?filter=macbeth</span>
+    </div>
+    <button hx-get="/content?filter=macbeth" hx-target="#macbeth-result" class="htmx-indicator">Load Macbeth speeches...</button>
+    <div id="macbeth-result" class="content-list" style="margin-top: 15px;"></div>
+</div>
+{% endblock %}

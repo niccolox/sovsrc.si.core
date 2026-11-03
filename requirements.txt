@@ -1,0 +1,7 @@
+torch
+lightning
+einops
+pydantic
+pydantic-settings
+fastapi
+uvicorn[standard]

@@ -1,0 +1,144 @@
+{% if not request.headers.get('HX-Request') %}
+{% extends "base.html" %}
+{% endif %}
+
+{% block title %}README - Sovereign Source Content Rewards{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>README</h1>
+    <p>This service records content, attributes model outputs to that content, and pays rewards from a pool.
+       The rules below come from the Pydantic models and the reward function in <code>hello_rewards.py</code>.</p>
+    <p>Flow: <strong>Content</strong> → <strong>Attribution</strong> → <strong>ModelOutput</strong> → <strong>calculate_rewards</strong> → <strong>RewardEvent</strong></p>
+</div>
+
+<div class="card">
+    <h2>Ontology</h2>
+    <p>Each table is one Pydantic model. The tables are generated from the model classes at request time.
+       All models are frozen. A record does not change after creation.</p>
+
+    {% for model in models %}
+    <div class="card-header">
+        <span><strong>{{ model.name }}</strong>{% if model.bases %} <span class="content-meta">extends {{ model.bases | join(', ') }}</span>{% endif %}</span>
+        <span class="endpoint-badge">{% if model.frozen %}frozen{% else %}mutable{% endif %}</span>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr><th>Field</th><th>Type</th><th>Default</th><th>Constraints</th></tr>
+        </thead>
+        <tbody>
+            {% for f in model.fields %}
+            <tr>
+                <td><code>{{ f.name }}</code></td>
+                <td><code>{{ f.type }}</code></td>
+                <td>{{ f.default }}</td>
+                <td>{{ f.constraints }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <br>
+    {% endfor %}
+
+    <h3>Relations</h3>
+    <ul>
+        <li><code>Attribution.content_unit_id</code> points to <code>ContentUnit.id</code>.</li>
+        <li><code>ModelOutput.citations</code> holds a list of <code>Attribution</code> records.</li>
+        <li><code>Allocation.content_unit_id</code> and <code>Allocation.contributor_id</code> copy the cited <code>ContentUnit</code>.</li>
+        <li><code>RewardEvent.model_output_id</code> points to <code>ModelOutput.id</code>.</li>
+        <li><code>TrainingContentUnit</code> adds two tensors to <code>ContentUnit</code> for use in a training loop.</li>
+    </ul>
+</div>
+
+<div class="grid">
+    {% for enum in enums %}
+    <div class="card">
+        <h2>{{ enum.name }}</h2>
+        <table class="data-table">
+            <thead><tr><th>Name</th><th>Value</th></tr></thead>
+            <tbody>
+                {% for v in enum.members %}
+                <tr><td><code>{{ v.name }}</code></td><td><code>{{ v.value }}</code></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <h2>License factors</h2>
+    <p>Each license has a factor. The factor scales the influence of a citation. A factor of 0 gives no reward.
+       The <code>source_uri</code> of a content unit points to the license text.</p>
+    <table class="data-table">
+        <thead><tr><th>License</th><th>Factor</th><th>License text</th></tr></thead>
+        <tbody>
+            {% for l in licenses %}
+            <tr>
+                <td><span class="license-badge license-{{ l.license.replace('-', '').replace('_', '').replace('.', '') }}">{{ l.license }}</span></td>
+                <td>{{ l.factor }}</td>
+                <td><a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.url }}</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>Reward logic</h2>
+    <p><code>calculate_rewards(model_output, content_units, pool_amount)</code> returns one <code>RewardEvent</code>. It does these steps:</p>
+    <ol>
+        <li>Read each citation in <code>model_output.citations</code>.</li>
+        <li>Skip the citation if its content unit is not in the store.</li>
+        <li>Skip the citation if the license factor is 0.</li>
+        <li>Compute <code>weight = influence_score × license_factor</code>.</li>
+        <li>Add the weight to <code>total_weight</code>.</li>
+        <li>For each kept citation, compute <code>amount = (weight / total_weight) × pool_amount</code>.</li>
+        <li>Write one <code>Allocation</code> per kept citation with <code>share = weight</code>.</li>
+    </ol>
+    <p>All money values use <code>Decimal</code>. The allocations sum to the full pool when at least one citation is kept.
+       If no citation is kept, the event has no allocations and the pool stays unpaid.</p>
+
+    <h3>Worked example</h3>
+    <p>Pool = 100. Two citations: <code>c1</code> (sovsrc-rewards-v1, factor 1.0, influence 0.6) and <code>c2</code> (cc-by-4.0, factor 0.1, influence 0.4).</p>
+    <pre>weight(c1) = 0.6 × 1.0 = 0.60
+weight(c2) = 0.4 × 0.1 = 0.04
+total      = 0.64
+amount(c1) = 0.60 / 0.64 × 100 = 93.75  → alice
+amount(c2) = 0.04 / 0.64 × 100 =  6.25  → bob</pre>
+    <button hx-get="/demo/hello-world" hx-target="#readme-demo-output">Run this example</button>
+    <div id="readme-demo-output" class="output" style="margin-top: 15px;"><pre class="json-output">The result appears here.</pre></div>
+</div>
+
+<div class="card">
+    <h2>Training logic</h2>
+    <p>The unified demo trains a small Lightning model and pays rewards per epoch. Each training sample is a <code>TrainingContentUnit</code>.</p>
+    <ol>
+        <li>In each training step, write one <code>Attribution</code> per sample in the batch with <code>influence_score = 1 / batch_size</code>.</li>
+        <li>At the end of the epoch, sum the influence scores per content unit.</li>
+        <li>Build one <code>ModelOutput</code> for the epoch with those sums as citations.</li>
+        <li>Call <code>calculate_rewards</code> with a pool of 1000.</li>
+        <li>Store the <code>RewardEvent</code> and report earnings per contributor.</li>
+    </ol>
+    <button hx-get="/demo/unified" hx-target="#readme-train-output">Run the training demo</button>
+    <div id="readme-train-output" class="output" style="margin-top: 15px;"><pre class="json-output">The result appears here.</pre></div>
+</div>
+
+<div class="card">
+    <h2>Endpoints</h2>
+    <table class="data-table">
+        <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+        <tbody>
+            <tr><td><span class="method method-post">POST</span></td><td><code>/content</code></td><td>Add a content unit.</td></tr>
+            <tr><td><span class="method method-get">GET</span></td><td><code>/content</code></td><td>List content units. Filter by license or id prefix.</td></tr>
+            <tr><td><span class="method method-post">POST</span></td><td><code>/attribute</code></td><td>Record a model output with citations.</td></tr>
+            <tr><td><span class="method method-post">POST</span></td><td><code>/rewards/calculate</code></td><td>Pay a pool for one model output.</td></tr>
+            <tr><td><span class="method method-get">GET</span></td><td><code>/rewards/ledger</code></td><td>List all reward events.</td></tr>
+            <tr><td><span class="method method-get">GET</span></td><td><code>/contributors/{id}/earnings</code></td><td>Sum the earnings of one contributor.</td></tr>
+            <tr><td><span class="method method-get">GET</span></td><td><code>/leaderboard/macbeth</code></td><td>Rank the Macbeth contributors.</td></tr>
+            <tr><td><span class="method method-get">GET</span></td><td><code>/demo/hello-world</code></td><td>Run the worked example.</td></tr>
+            <tr><td><span class="method method-get">GET</span></td><td><code>/demo/unified</code></td><td>Run the training demo.</td></tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}

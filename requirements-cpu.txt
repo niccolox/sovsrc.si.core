@@ -1,0 +1,9 @@
+# torch is installed first from the CPU wheel index in the Dockerfile.
+torch
+lightning
+einops
+pydantic
+pydantic-settings
+fastapi
+uvicorn[standard]
+jinja2

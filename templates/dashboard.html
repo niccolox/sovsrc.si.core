@@ -1,0 +1,67 @@
+{% if not request.headers.get('HX-Request') %}
+{% extends "base.html" %}
+{% endif %}
+
+{% block title %}Sovereign Source API Dashboard{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>🏛️ Sovereign Source Content Rewards API</h1>
+    <p>Interactive HTMX frontend for the content attribution and rewards system.</p>
+    <div class="card-header">
+        <span>API Status</span>
+        <span class="endpoint-badge">GET /</span>
+    </div>
+    <button hx-get="/api/health" hx-target="#api-status" class="htmx-indicator">Checking...</button>
+    <div id="api-status" class="status"></div>
+</div>
+
+<div class="grid">
+    <div class="card">
+        <h2>📊 Quick Stats</h2>
+        <button hx-get="/api/stats" hx-target="#stats-output" class="htmx-indicator">Loading...</button>
+        <div id="stats-output" class="output"><pre class="json-output">Click to load stats...</pre></div>
+    </div>
+
+    <div class="card">
+        <h2>💰 Reward Ledger Summary</h2>
+        <button hx-get="/rewards/ledger" hx-target="#ledger-output" class="htmx-indicator">Loading...</button>
+        <div id="ledger-output" class="output"><pre class="json-output">Click to load ledger...</pre></div>
+    </div>
+</div>
+
+<div class="grid">
+    <div class="card">
+        <h2>📚 Content Units ({{ total_content }} total)</h2>
+        <div class="card-header">
+            <span>License Distribution</span>
+        </div>
+        <div id="license-dist">
+            {% for license, count in license_distribution.items() %}
+            <span class="license-badge license-{{ license.replace('-', '').replace('_', '') }}">{{ license }}: {{ count }}</span>
+            {% endfor %}
+        </div>
+        <button hx-get="/content" hx-target="#content-list" class="htmx-indicator">Load All Content</button>
+        <div id="content-list" class="content-list">
+            <p class="text-muted">Click "Load All Content" to see all units...</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🎭 Macbeth Speeches (16)</h2>
+        <p>Shakespeare's Macbeth with per-speech licenses for testing attribution.</p>
+        <button hx-get="/content?filter=macbeth" hx-target="#macbeth-list" class="htmx-indicator">Loading...</button>
+        <div id="macbeth-list" class="content-list"></div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>🚀 Quick Actions</h2>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button hx-get="/demo/hello-world" hx-target="#demo-output" class="btn-secondary">Run Hello World Demo</button>
+        <button hx-get="/demo/unified" hx-target="#demo-output" class="btn-secondary">Run Unified Training Demo</button>
+        <button hx-get="/rewards/ledger" hx-target="#demo-output" class="btn-secondary">View Full Ledger</button>
+    </div>
+    <div id="demo-output" class="output" style="margin-top: 15px;"><pre class="json-output">Results will appear here...</pre></div>
+</div>
+{% endblock %}

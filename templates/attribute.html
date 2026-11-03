@@ -1,0 +1,59 @@
+{% if not request.headers.get('HX-Request') %}
+{% extends "base.html" %}
+{% endif %}
+
+{% block title %}Attribute Output - Sovereign Source API{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>🎯 Attribute Model Output</h2>
+        <span class="endpoint-badge">POST /attribute</span>
+    </div>
+    <p>Provide a prompt, response, and citations to create an attributed model output.</p>
+    
+    <form hx-post="/attribute" hx-target="#attribute-result" hx-swap="innerHTML">
+        <div class="form-group">
+            <label>Prompt *</label>
+            <textarea name="prompt" required placeholder="What is the speed of light?"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Response *</label>
+            <textarea name="response" required placeholder="Light travels at 299,792,458 m/s."></textarea>
+        </div>
+        <div class="form-group">
+            <label>Citations (JSON Array) *</label>
+            <textarea name="citations" required placeholder='[{"content_unit_id": "c1", "influence_score": 0.8, "method": "exact_match"}, {"content_unit_id": "macbeth-speech-2", "influence_score": 0.2, "method": "semantic_similarity"}]'></textarea>
+        </div>
+        <button type="submit" class="htmx-indicator">Creating attribution...</button>
+    </form>
+    <div id="attribute-result" class="output" style="margin-top: 15px;"><pre class="json-output">Results will appear here...</pre></div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>📋 Example: Physics Fact Attribution</h2>
+    </div>
+    <button hx-post="/attribute" hx-target="#attribute-result" 
+            hx-vals='js:{"prompt": "What is the speed of light and boiling point of water?", "response": "Light travels at 299,792,458 m/s. Water boils at 100°C.", "citations": [{"content_unit_id": "c1", "influence_score": 0.6, "method": "exact_match"}, {"content_unit_id": "c2", "influence_score": 0.4, "method": "exact_match"}]}'
+            class="btn-secondary">Run Physics Example</button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>🎭 Example: Macbeth Guilt Attribution</h2>
+    </div>
+    <button hx-post="/attribute" hx-target="#attribute-result" 
+            hx-vals='js:{"prompt": "Quote a line about guilt from Macbeth", "response": "Methought I heard a voice cry Sleep no more! Macbeth does murder sleep.", "citations": [{"content_unit_id": "macbeth-speech-2", "influence_score": 0.7, "method": "exact_match"}, {"content_unit_id": "macbeth-speech-10", "influence_score": 0.3, "method": "semantic_similarity"}]}'
+            class="btn-secondary">Run Macbeth Example</button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>📋 All Model Outputs</h2>
+        <span class="endpoint-badge">GET /outputs (if implemented)</span>
+    </div>
+    <button hx-get="/attribute" hx-target="#outputs-result" class="btn-secondary">Load Outputs (Not Implemented)</button>
+    <div id="outputs-result" class="output" style="margin-top: 15px;"><pre class="json-output">This endpoint would list all attributed outputs...</pre></div>
+</div>
+{% endblock %}

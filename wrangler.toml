@@ -1,0 +1,28 @@
+name = "sovsrc-si-core"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+workers_dev = true
+
+routes = [
+  { pattern = "hello.sovsrc.si", custom_domain = true }
+]
+
+[observability]
+enabled = true
+
+[[containers]]
+class_name = "SovsrcApiContainer"
+image = "./Dockerfile"
+instance_type = "basic"
+max_instances = 2
+
+[[durable_objects.bindings]]
+name = "SOVSRC_API"
+class_name = "SovsrcApiContainer"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SovsrcApiContainer"]
+
+[vars]
+ENVIRONMENT = "production"

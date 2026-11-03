@@ -1,0 +1,102 @@
+{% if not request.headers.get('HX-Request') %}
+{% extends "base.html" %}
+{% endif %}
+
+{% block title %}Rewards Calculation - Sovereign Source API{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>💰 Calculate Rewards</h2>
+        <span class="endpoint-badge">POST /rewards/calculate</span>
+    </div>
+    <p>Calculate reward allocations for a model output based on its citations and the content store.</p>
+    
+    <form hx-post="/rewards/calculate" hx-target="#rewards-result" hx-swap="innerHTML">
+        <div class="form-group">
+            <label>Model Output ID *</label>
+            <input type="text" name="model_output_id" required placeholder="Enter output ID from /attribute">
+        </div>
+        <div class="form-group">
+            <label>Pool Amount *</label>
+            <input type="number" step="0.01" name="pool_amount" value="100" required placeholder="100">
+        </div>
+        <button type="submit" class="htmx-indicator">Calculating rewards...</button>
+    </form>
+    <div id="rewards-result" class="output" style="margin-top: 15px;"><pre class="json-output">Results will appear here...</pre></div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>📋 Full Reward Ledger</h2>
+        <span class="endpoint-badge">GET /rewards/ledger</span>
+    </div>
+    <button hx-get="/rewards/ledger" hx-target="#ledger-result" class="htmx-indicator">Loading ledger...</button>
+    <div id="ledger-result" class="output" style="margin-top: 15px;"><pre class="json-output">Click to load full reward ledger...</pre></div>
+</div>
+
+<div class="grid">
+    <div class="card">
+        <div class="card-header">
+            <h2>👤 Contributor Earnings</h2>
+            <span class="endpoint-badge">GET /contributors/{id}/earnings</span>
+        </div>
+        <form hx-get="/contributors/{{ contributor_id }}/earnings" hx-target="#earnings-result" hx-swap="innerHTML">
+            <div class="form-group">
+                <label>Contributor ID</label>
+                <input type="text" name="contributor_id" value="alice" placeholder="alice">
+            </div>
+            <button type="submit" class="htmx-indicator">Loading earnings...</button>
+        </form>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <button hx-get="/contributors/alice/earnings" hx-target="#earnings-result" class="btn-secondary">alice (physics)</button>
+            <button hx-get="/contributors/bob/earnings" hx-target="#earnings-result" class="btn-secondary">bob (chemistry)</button>
+            <button hx-get="/contributors/corp_x/earnings" hx-target="#earnings-result" class="btn-secondary">corp_x (research)</button>
+            <button hx-get="/contributors/macbeth/earnings" hx-target="#earnings-result" class="btn-secondary">macbeth</button>
+            <button hx-get="/contributors/lady_macbeth/earnings" hx-target="#earnings-result" class="btn-secondary">lady_macbeth</button>
+            <button hx-get="/contributors/banquo/earnings" hx-target="#earnings-result" class="btn-secondary">banquo</button>
+            <button hx-get="/contributors/duncan/earnings" hx-target="#earnings-result" class="btn-secondary">duncan</button>
+            <button hx-get="/contributors/macduff/earnings" hx-target="#earnings-result" class="btn-secondary">macduff</button>
+            <button hx-get="/contributors/macduffs_son/earnings" hx-target="#earnings-result" class="btn-secondary">macduffs_son</button>
+        </div>
+        <div id="earnings-result" class="output" style="margin-top: 15px;"><pre class="json-output">Select a contributor to see earnings...</pre></div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>🔄 Complete Flow: Attribute → Calculate → Check Earnings</h2>
+    </div>
+    <p>Run the complete attribution and rewards flow in one click:</p>
+    <button hx-post="/attribute" hx-target="#flow-result" 
+            hx-vals='js:{"prompt": "What is the speed of light?", "response": "Light travels at 299,792,458 m/s.", "citations": [{"content_unit_id": "c1", "influence_score": 0.8, "method": "exact_match"}, {"content_unit_id": "c2", "influence_score": 0.2, "method": "semantic_similarity"}]}'
+            class="htmx-indicator" hx-on::after-request="
+                const outputId = JSON.parse(event.detail.xhr.responseText).id;
+                htmx.ajax('POST', '/rewards/calculate', {
+                    target: '#flow-result',
+                    values: {model_output_id: outputId, pool_amount: '100'}
+                });
+            ">
+        Run Complete Flow (Physics)
+    </button>
+    <div id="flow-result" class="output" style="margin-top: 15px;"><pre class="json-output">Results will appear here...</pre></div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>🔄 Complete Flow: Macbeth Attribution → Rewards</h2>
+    </div>
+    <button hx-post="/attribute" hx-target="#macbeth-flow-result" 
+            hx-vals='js:{"prompt": "Quote a line about guilt from Macbeth", "response": "Methought I heard a voice cry Sleep no more! Macbeth does murder sleep.", "citations": [{"content_unit_id": "macbeth-speech-2", "influence_score": 0.7, "method": "exact_match"}, {"content_unit_id": "macbeth-speech-10", "influence_score": 0.3, "method": "semantic_similarity"}]}'
+            class="htmx-indicator" hx-on::after-request="
+                const outputId = JSON.parse(event.detail.xhr.responseText).id;
+                htmx.ajax('POST', '/rewards/calculate', {
+                    target: '#macbeth-flow-result',
+                    values: {model_output_id: outputId, pool_amount: '100'}
+                });
+            ">
+        Run Complete Flow (Macbeth)
+    </button>
+    <div id="macbeth-flow-result" class="output" style="margin-top: 15px;"><pre class="json-output">Results will appear here...</pre></div>
+</div>
+{% endblock %}

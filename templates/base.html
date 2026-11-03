@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sovereign Source Content Rewards API{% endblock %}</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            line-height: 1.6; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #f8f9fa; 
+            color: #1a1a2e;
+        }
+        h1 { color: #1a1a2e; border-bottom: 2px solid #4a90d9; padding-bottom: 10px; }
+        h2 { color: #2c3e50; margin-top: 30px; }
+        h3 { color: #34495e; }
+        .card { 
+            background: white; 
+            border-radius: 8px; 
+            padding: 20px; 
+            margin: 20px 0; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+            border: 1px solid #e9ecef;
+        }
+        .card-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 15px; 
+            padding-bottom: 10px; 
+            border-bottom: 1px solid #eee; 
+        }
+        .endpoint-badge { 
+            background: #4a90d9; 
+            color: white; 
+            padding: 4px 12px; 
+            border-radius: 4px; 
+            font-size: 0.85em; 
+            font-family: monospace; 
+        }
+        .method { 
+            display: inline-block; 
+            padding: 2px 8px; 
+            border-radius: 3px; 
+            font-size: 0.75em; 
+            font-weight: bold; 
+            margin-right: 8px; 
+        }
+        .method-get { background: #28a745; color: white; }
+        .method-post { background: #007bff; color: white; }
+        pre { 
+            background: #1e1e2e; 
+            color: #d4d4d4; 
+            padding: 15px; 
+            border-radius: 6px; 
+            overflow-x: auto; 
+            font-size: 0.85em; 
+            line-height: 1.4;
+        }
+        code { font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; }
+        .output { 
+            background: #f8f9fa; 
+            border: 1px solid #dee2e6; 
+            max-height: 400px; 
+            overflow-y: auto; 
+        }
+        .output pre { background: #fff; color: #1a1a2e; border: none; }
+        button { 
+            background: #4a90d9; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 1em; 
+            transition: background 0.2s; 
+        }
+        button:hover { background: #357abd; }
+        button:disabled { background: #adb5bd; cursor: not-allowed; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #5a6268; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; }
+        input, textarea, select { 
+            width: 100%; 
+            padding: 10px; 
+            border: 1px solid #ced4da; 
+            border-radius: 4px; 
+            font-family: inherit; 
+            font-size: 0.95em; 
+        }
+        textarea { min-height: 120px; font-family: monospace; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .status { 
+            padding: 10px; 
+            border-radius: 4px; 
+            margin: 10px 0; 
+            display: none; 
+        }
+        .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; display: block; }
+        .status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; display: block; }
+        .loading { display: none; }
+        .htmx-indicator { display: none; }
+        .htmx-request .htmx-indicator { display: inline; }
+        .htmx-request .loading { display: inline; }
+        .json-output { white-space: pre-wrap; word-break: break-word; }
+        nav { margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #dee2e6; }
+        nav a { margin-right: 20px; color: #4a90d9; text-decoration: none; }
+        nav a:hover { text-decoration: underline; }
+        .contributor-earnings { background: #e7f3ff; padding: 15px; border-radius: 6px; margin: 10px 0; }
+        .license-badge { 
+            display: inline-block; 
+            padding: 2px 8px; 
+            border-radius: 3px; 
+            font-size: 0.75em; 
+            margin-right: 5px; 
+        }
+        .license-sovsrc { background: #d4edda; color: #155724; }
+        .license-ccby { background: #cce5ff; color: #004085; }
+        .license-proprietary { background: #fff3cd; color: #856404; }
+        .license-public { background: #e2e3e5; color: #383d41; }
+        .content-list { max-height: 400px; overflow-y: auto; }
+        .content-item { 
+            padding: 10px; 
+            border-bottom: 1px solid #eee; 
+            cursor: pointer; 
+            transition: background 0.15s; 
+        }
+        .content-item:hover { background: #f8f9fa; }
+        .content-item:last-child { border-bottom: none; }
+        .content-text { font-family: monospace; font-size: 0.85em; color: #495057; margin: 5px 0; }
+        .content-meta { font-size: 0.8em; color: #6c757d; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        .data-table th, .data-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #dee2e6; }
+        .data-table th { background: #f8f9fa; font-weight: 600; color: #2c3e50; border-bottom: 2px solid #dee2e6; }
+        .data-table tr:hover { background: #f8f9fa; }
+        .data-table td { color: #1a1a2e; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/ui" hx-get="/ui" hx-target="#main-content">Dashboard</a>
+        <a href="/ui/content" hx-get="/ui/content" hx-target="#main-content">Content</a>
+        <a href="/ui/attribute" hx-get="/ui/attribute" hx-target="#main-content">Attribute</a>
+        <a href="/ui/rewards" hx-get="/ui/rewards" hx-target="#main-content">Rewards</a>
+        <a href="/ui/demo" hx-get="/ui/demo" hx-target="#main-content">Demos</a>
+        <a href="/ui/leaderboard" hx-get="/ui/leaderboard" hx-target="#main-content">🏆 Leaderboard</a>
+        <a href="/ui/readme" hx-get="/ui/readme" hx-target="#main-content">README</a>
+    </nav>
+
+    <main id="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        // Auto-format JSON in pre tags
+        document.addEventListener('htmx:afterSwap', function(evt) {
+            evt.target.querySelectorAll('pre.json-output').forEach(function(el) {
+                try {
+                    const parsed = JSON.parse(el.textContent);
+                    el.textContent = JSON.stringify(parsed, null, 2);
+                } catch (e) {}
+            });
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

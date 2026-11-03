@@ -1,0 +1,71 @@
+{% if not request.headers.get('HX-Request') %}
+{% extends "base.html" %}
+{% endif %}
+
+{% block title %}Demos - Sovereign Source API{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>🏁 Hello World Demo (Fixture)</h2>
+        <span class="endpoint-badge">GET /demo/hello-world</span>
+    </div>
+    <p>Runs the deterministic content rewards fixture with 3 content units (physics, chemistry, proprietary research).</p>
+    <button hx-get="/demo/hello-world" hx-target="#helloworld-result" class="htmx-indicator">Running demo...</button>
+    <div id="helloworld-result" class="output" style="margin-top: 15px;"><pre class="json-output">Click to run hello world demo...</pre></div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>🤖 Unified Training + Rewards Demo</h2>
+        <span class="endpoint-badge">GET /demo/unified</span>
+    </div>
+    <p>Runs 3 training epochs with 100 synthetic samples, each mapped to a content unit with license and contributor. Calculates rewards per epoch. <strong>Takes 10-30 seconds.</strong></p>
+    <button hx-get="/demo/unified" hx-target="#unified-result" class="htmx-indicator">Running unified demo (10-30s)...</button>
+    <div id="unified-result" class="output" style="margin-top: 15px;"><pre class="json-output">Click to run unified training + rewards demo...</pre></div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>🎭 Macbeth Demo: Attribution &amp; Rewards</h2>
+    </div>
+    <p>Uses the seeded Macbeth speeches to demonstrate attribution and reward calculation with different licenses.</p>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+        <button hx-post="/attribute" hx-target="#macbeth-demo-result" 
+                hx-vals='js:{"prompt": "Quote Macbeth on guilt", "response": "Methought I heard a voice cry Sleep no more! Macbeth does murder sleep.", "citations": [{"content_unit_id": "macbeth-speech-2", "influence_score": 0.7, "method": "exact_match"}]}'
+                class="btn-secondary">Step 1: Attribute (Macbeth speech-2, cc-by-4.0)</button>
+        <button hx-post="/attribute" hx-target="#macbeth-demo-result" 
+                hx-vals='js:{"prompt": "Quote Banquo on prophecy", "response": "You shall be king.", "citations": [{"content_unit_id": "macbeth-speech-10", "influence_score": 0.6, "method": "exact_match"}, {"content_unit_id": "macbeth-speech-1", "influence_score": 0.4, "method": "semantic_similarity"}]}'
+                class="btn-secondary">Step 1: Attribute (Banquo + Macbeth)</button>
+        <button hx-get="/demo/hello-world" hx-target="#macbeth-demo-result" class="btn-secondary">Run Hello World</button>
+    </div>
+    <div id="macbeth-demo-result" class="output" style="margin-top: 15px;"><pre class="json-output">Results will appear here...</pre></div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>📋 API Endpoint Reference</h2>
+    </div>
+    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+        <thead>
+            <tr style="background: #f8f9fa; text-align: left;">
+                <th style="padding: 10px; border-bottom: 2px solid #dee2e6;">Method</th>
+                <th style="padding: 10px; border-bottom: 2px solid #dee2e6;">Endpoint</th>
+                <th style="padding: 10px; border-bottom: 2px solid #dee2e6;">Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td style="padding: 10px; border-bottom: 1px solid #eee;"><span class="method method-get">GET</span></td><td style="padding: 10px; border-bottom: 1px solid #eee; font-family: monospace;">/</td><td style="padding: 10px; border-bottom: 1px solid #eee;">API info and endpoint list</td></tr>
+            <tr><td style="padding: 10px; border-bottom: 1px solid #eee;"><span class="method method-get">GET</span></td><td style="padding: 10px; border-bottom: 1px solid #eee; font-family: monospace;">/content</td><td style="padding: 10px; border-bottom: 1px solid #eee;">List all content units</td></tr>
+            <tr><td style="padding: 10px; border-bottom: 1px solid #eee;"><span class="method method-get">GET</span></td><td style="padding: 10px; border-bottom: 1px solid #eee; font-family: monospace;">/content/{id}</td><td style="padding: 10px; border-bottom: 1px solid #eee;">Get single content unit</td></tr>
+            <tr><td style="padding: 10px; border-bottom: 1px solid #eee;"><span class="method method-post">POST</span></td><td style="padding: 10px; border-bottom: 1px solid #eee; font-family: monospace;">/content</td><td style="padding: 10px; border-bottom: 1px solid #eee;">Ingest new content unit</td></tr>
+            <tr><td style="padding: 10px; border-bottom: 1px solid #eee;"><span class="method method-post">POST</span></td><td style="padding: 10px; border-bottom: 1px solid #eee; font-family: monospace;">/attribute</td><td style="padding: 10px; border-bottom: 1px solid #eee;">Attribute model output</td></tr>
+            <tr><td style="padding: 10px; border-bottom: 1px solid #eee;"><span class="method method-post">POST</span></td><td style="padding: 10px; border-bottom: 1px solid #eee; font-family: monospace;">/rewards/calculate</td><td style="padding: 10px; border-bottom: 1px solid #eee;">Calculate rewards</td></tr>
+            <tr><td style="padding: 10px; border-bottom: 1px solid #eee;"><span class="method method-get">GET</span></td><td style="padding: 10px; border-bottom: 1px solid #eee; font-family: monospace;">/rewards/ledger</td><td style="padding: 10px; border-bottom: 1px solid #eee;">All reward events</td></tr>
+            <tr><td style="padding: 10px; border-bottom: 1px solid #eee;"><span class="method method-get">GET</span></td><td style="padding: 10px; border-bottom: 1px solid #eee; font-family: monospace;">/contributors/{id}/earnings</td><td style="padding: 10px; border-bottom: 1px solid #eee;">Contributor totals</td></tr>
+            <tr><td style="padding: 10px; border-bottom: 1px solid #eee;"><span class="method method-get">GET</span></td><td style="padding: 10px; border-bottom: 1px solid #eee; font-family: monospace;">/demo/hello-world</td><td style="padding: 10px; border-bottom: 1px solid #eee;">Fixture demo</td></tr>
+            <tr><td style="padding: 10px; border-bottom: 1px solid #eee;"><span class="method method-get">GET</span></td><td style="padding: 10px; border-bottom: 1px solid #eee; font-family: monospace;">/demo/unified</td><td style="padding: 10px; border-bottom: 1px solid #eee;">Full training demo</td></tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}
