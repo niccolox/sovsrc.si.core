@@ -1,356 +1,233 @@
-# Dashboard System Design
+# sovsrc.si.core
 
-## Overview
+Content rewards service for Sovereign Source. The service records licensed
+content, attributes model outputs to that content, and pays rewards from a
+token pool. A small PyTorch Lightning demo shows the same flow inside a
+training loop.
 
-This document describes the system architecture for the Dashboard application, including data flow, component interactions, and deployment topology.
+Live: <https://hello.sovsrc.si> (API root) and <https://hello.sovsrc.si/ui>
+(HTMX UI). The page at `/ui/readme` renders the ontology from the Pydantic
+models at request time.
 
-## High-Level Architecture
+## System diagram
 
 ```mermaid
-graph TB
-    subgraph "Client Layer"
-        Browser[Web Browser]
-        Mobile[Mobile App]
+flowchart LR
+    subgraph Clients
+        Browser["Browser (HTMX UI)"]
+        API["API client (curl)"]
     end
 
-    subgraph "Edge Layer"
-        CF[Cloudflare CDN]
-        WAF[WAF / Bot Management]
-        Turnstile[Turnstile Verification]
+    subgraph Cloudflare
+        Worker["Worker: src/index.ts"]
+        DO["Durable Object: SovsrcApiContainer"]
+        Container["Container: FastAPI server.py"]
     end
 
-    subgraph "Application Layer"
-        Worker[Cloudflare Worker]
-        Auth[Auth Service]
-        API[API Gateway]
+    subgraph Stores["In-memory stores"]
+        ContentStore["content_store: ContentUnit by id"]
+        OutputStore["output_store: ModelOutput by id"]
+        Ledger["reward_events: RewardEvent list"]
     end
 
-    subgraph "Data Layer"
-        D1[(D1 Database)]
-        KV[(KV Store)]
-        R2[(R2 Object Storage)]
-        Queue[Queues]
-    end
-
-    subgraph "External Services"
-        AI[Workers AI]
-        Email[Email Service]
-        Analytics[Analytics Engine]
-    end
-
-    Browser --> CF
-    Mobile --> CF
-    CF --> WAF
-    WAF --> Turnstile
-    Turnstile --> Worker
-    Worker --> Auth
-    Worker --> API
-    API --> D1
-    API --> KV
-    API --> R2
-    API --> Queue
-    Worker --> AI
-    Worker --> Email
-    Worker --> Analytics
+    Browser --> Worker
+    API --> Worker
+    Worker --> DO
+    DO --> Container
+    Container --> ContentStore
+    Container --> OutputStore
+    Container --> Ledger
+    Macbeth["macbeth.json seed"] --> ContentStore
 ```
 
-## Data Flow - Dashboard Load
+The Worker sends every request to one container instance, because the
+server keeps its state in memory. The container sleeps after 10 minutes
+without requests. A cold start takes about one minute.
+
+## Content rewards logic
+
+### Data flow
+
+```mermaid
+flowchart LR
+    CU["ContentUnit<br/>license, contributor_id"] --> AT["Attribution<br/>influence_score, method"]
+    AT --> MO["ModelOutput<br/>citations"]
+    MO --> CR["calculate_rewards<br/>pool_amount"]
+    LF["LICENSE_FACTORS"] --> CR
+    CR --> RE["RewardEvent<br/>allocations"]
+    RE --> AL["Allocation<br/>contributor_id, amount"]
+```
+
+### Reward calculation
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant B as Browser
-    participant CF as Cloudflare Edge
-    participant W as Worker
-    participant KV as KV Cache
-    participant D1 as D1 Database
-    participant Q as Queue
+    participant Client
+    participant Server as server.py
+    participant Rewards as calculate_rewards
+    participant Store as content_store
 
-    U->>B: Navigate to /dashboard
-    B->>CF: GET /dashboard
-    CF->>W: Forward request
-    W->>KV: Check cached layout
-    alt Cache Hit
-        KV-->>W: Return cached config
-    else Cache Miss
-        W->>D1: Query user preferences
-        D1-->>W: Return preferences
-        W->>KV: Cache layout config
+    Client->>Server: POST /rewards/calculate (model_output_id, pool_amount)
+    Server->>Rewards: ModelOutput, content_store, pool_amount
+    loop each citation
+        Rewards->>Store: get ContentUnit by id
+        Store-->>Rewards: ContentUnit or none
+        Note over Rewards: skip if missing or license factor is 0
+        Note over Rewards: weight = influence_score x factor
     end
-    W->>D1: Query dashboard widgets
-    D1-->>W: Return widget data
-    W->>Q: Enqueue analytics event
-    W-->>B: Return HTML/JSON
-    B-->>U: Render dashboard
+    Note over Rewards: amount = weight / total_weight x pool_amount
+    Rewards-->>Server: RewardEvent with one Allocation per kept citation
+    Server->>Server: append RewardEvent to reward_events
+    Server-->>Client: RewardEvent
 ```
 
-## Widget Data Pipeline
+### Rules
 
-```mermaid
-graph LR
-    subgraph "Data Sources"
-        DS1[PostgreSQL]
-        DS2[External API]
-        DS3[Event Stream]
-        DS4[File Upload]
-    end
+The function `calculate_rewards` in `hello_rewards.py` does these steps:
 
-    subgraph "Ingestion"
-        Prefect[Prefect Flows]
-        Queue[Cloudflare Queues]
-    end
+1. Read each `Attribution` in `ModelOutput.citations`.
+2. Skip the citation if its `ContentUnit` is not in the store.
+3. Skip the citation if the license factor is 0.
+4. Compute `weight = influence_score × license_factor`.
+5. Add the weight to `total_weight`.
+6. Compute `amount = (weight / total_weight) × pool_amount` for each kept citation.
+7. Write one `Allocation` per kept citation. The `share` field holds the weight.
 
-    subgraph "Processing"
-        Worker1[ETL Worker]
-        Worker2[Transform Worker]
-        Worker3[Aggregate Worker]
-    end
+All money values use `Decimal`. The allocations sum to the full pool when
+at least one citation is kept. When no citation is kept, the event has no
+allocations and the pool stays unpaid.
 
-    subgraph "Storage"
-        D1[(D1 - Widget Data)]
-        KV[(KV - Real-time)]
-        R2[(R2 - Raw Files)]
-    end
+### License factors
 
-    subgraph "Serving"
-        API[Dashboard API]
-        WS[WebSocket Push]
-    end
+| License | Factor | License text |
+| --- | --- | --- |
+| `sovsrc-rewards-v1` | 1.0 | <https://github.com/niccolox/sovsrc.llm/blob/main/licenses/SS-SIP-0.1.md> |
+| `cc-by-4.0` | 0.1 | <https://creativecommons.org/licenses/by/4.0/> |
+| `proprietary-opt-in` | 0.5 | <https://github.com/niccolox/sovsrc.llm/blob/main/licenses/PROPRIETARY_OPT_IN.md> |
+| `public-domain` | 0.0 | <https://creativecommons.org/publicdomain/zero/1.0/> |
 
-    DS1 --> Prefect
-    DS2 --> Prefect
-    DS3 --> Queue
-    DS4 --> R2
+The `source_uri` field of a `ContentUnit` points to the license text, not
+to the content source.
 
-    Prefect --> Queue
-    Queue --> Worker1
-    Worker1 --> Worker2
-    Worker2 --> Worker3
-    Worker3 --> D1
-    Worker3 --> KV
-    D1 --> API
-    KV --> WS
-    API --> WS
+### Worked example
+
+Pool = 100. Two citations: `c1` (sovsrc-rewards-v1, factor 1.0, influence
+0.6) and `c2` (cc-by-4.0, factor 0.1, influence 0.4).
+
+```text
+weight(c1) = 0.6 × 1.0 = 0.60
+weight(c2) = 0.4 × 0.1 = 0.04
+total      = 0.64
+amount(c1) = 0.60 / 0.64 × 100 = 93.75  → alice
+amount(c2) = 0.04 / 0.64 × 100 =  6.25  → bob
 ```
 
-## Authentication & Authorization
+`GET /demo/hello-world` runs this example.
 
-```mermaid
-stateDiagram-v2
-    [*] --> Unauthenticated
-    Unauthenticated --> Challenge: Turnstile
-    Challenge --> Authenticated: Valid Token
-    Challenge --> Unauthenticated: Failed
-    Authenticated --> Authorized: Check Permissions
-    Authorized --> Admin: Role = Admin
-    Authorized --> User: Role = User
-    Authorized --> Viewer: Role = Viewer
-    Admin --> [*]: Full Access
-    User --> [*]: Read/Write Own
-    Viewer --> [*]: Read Only
-    Authenticated --> Expired: Token Expired
-    Expired --> Unauthenticated: Refresh Failed
-    Expired --> Authenticated: Refresh Success
+## Ontology
+
+All models are Pydantic v2 and frozen. A record does not change after
+creation. The typed models are the single source of truth. The API
+payloads and the README page derive from them.
+
+| Model | Fields | Points to |
+| --- | --- | --- |
+| `ContentUnit` | `id`, `text`, `source_uri`, `license`, `contributor_id`, `metadata`, `created_at` | license text by `source_uri` |
+| `TrainingContentUnit` | `ContentUnit` fields plus `tensor_x`, `tensor_y` | one training sample |
+| `Attribution` | `content_unit_id`, `influence_score` (0.0 to 1.0), `method` | `ContentUnit.id` |
+| `ModelOutput` | `id`, `prompt`, `response`, `citations`, `model_version`, `timestamp` | list of `Attribution` |
+| `Allocation` | `content_unit_id`, `contributor_id`, `share`, `amount` | `ContentUnit` |
+| `RewardEvent` | `id`, `model_output_id`, `pool_amount`, `allocations`, `calculated_at` | `ModelOutput.id` |
+
+Enums:
+
+| Enum | Values |
+| --- | --- |
+| `LicenseType` | `sovsrc-rewards-v1`, `cc-by-4.0`, `proprietary-opt-in`, `public-domain` |
+| `AttributionMethod` | `exact_match`, `semantic_similarity`, `inference_trace` |
+
+## Training flow
+
+`GET /demo/unified` and `unified_hello.py` train a small Lightning model on
+100 synthetic samples. Each sample is a `TrainingContentUnit` with a
+license and a contributor.
+
+1. In each training step, write one `Attribution` per sample in the batch
+   with `influence_score = 1 / batch_size`.
+2. At the end of the epoch, sum the influence scores per content unit.
+3. Build one `ModelOutput` for the epoch with those sums as citations.
+4. Call `calculate_rewards` with a pool of 1000.
+5. Store the `RewardEvent` and report earnings per contributor.
+
+## API
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/` | Service name, version, and endpoint list |
+| POST | `/content` | Add a `ContentUnit` (`text`, `source_uri`, `license`, `contributor_id`, `metadata`) |
+| GET | `/content` | List content units. Filter with `license` or `filter` (id prefix) |
+| GET | `/content/{content_id}` | Get one content unit |
+| POST | `/attribute` | Record a `ModelOutput` (`prompt`, `response`, `citations`) |
+| POST | `/rewards/calculate` | Pay a pool for one output (`model_output_id`, `pool_amount`) |
+| GET | `/rewards/ledger` | List all reward events |
+| GET | `/contributors/{contributor_id}/earnings` | Sum the earnings of one contributor |
+| GET | `/leaderboard/macbeth` | Rank the Macbeth contributors |
+| GET | `/leaderboard/macbeth/values` | Rank by license value |
+| GET | `/leaderboard/macbeth/characters` | Rank by character |
+| GET | `/demo/hello-world` | Run the worked example |
+| GET | `/demo/unified` | Run the training demo |
+| GET | `/ui`, `/ui/content`, `/ui/attribute`, `/ui/rewards`, `/ui/demo`, `/ui/leaderboard`, `/ui/readme` | HTMX pages |
+
+The server seeds three content units and 16 Macbeth speeches from
+`macbeth.json` at start.
+
+## Run locally
+
+```bash
+make install        # install Python dependencies
+make test           # run hello_rewards.py
+make run-unified    # run the training demo
+make run-server     # start the API on http://localhost:8000
+./run_curl_examples.sh
 ```
 
-## Real-time Updates
+Or build the container image:
 
-```mermaid
-graph TB
-    subgraph "Server"
-        DO["Durable Object<br/>Room: dashboard-{id}"]
-        DOStorage[(DO Storage<br/>SQLite)]
-        WSHandler[WebSocket Handler]
-    end
-
-    subgraph "Clients"
-        C1[Client 1]
-        C2[Client 2]
-        C3[Client N]
-    end
-
-    subgraph "Events"
-        Queue[Queues]
-        Worker[Worker]
-    end
-
-    C1 <--> WSHandler
-    C2 <--> WSHandler
-    C3 <--> WSHandler
-    WSHandler <--> DO
-    DO <--> DOStorage
-    Queue --> Worker
-    Worker -->|Broadcast Update| DO
+```bash
+make docker-build
+docker run --rm -p 8000:8000 sovsrc-si-core:local
 ```
 
-## Deployment Pipeline
+## Deploy to Cloudflare
 
-```mermaid
-graph LR
-    subgraph "CI"
-        Push[Git Push]
-        Lint[Lint & Typecheck]
-        Test[Unit Tests]
-        Build[Build Assets]
-    end
+The service runs on Cloudflare Workers with Containers. `wrangler.toml`
+declares the container class, the `basic` instance type, the custom domain
+`hello.sovsrc.si`, and the Durable Object migration.
 
-    subgraph "Staging"
-        DeployS[Deploy Preview]
-        Smoke[Smoke Tests]
-        E2E[E2E Tests]
-    end
-
-    subgraph "Production"
-        DeployP[Deploy Production]
-        Canary[Canary Release]
-        Monitor[Monitor Metrics]
-        Rollback[Auto Rollback]
-    end
-
-    Push --> Lint
-    Lint --> Test
-    Test --> Build
-    Build --> DeployS
-    DeployS --> Smoke
-    Smoke --> E2E
-    E2E --> DeployP
-    DeployP --> Canary
-    Canary --> Monitor
-    Monitor -->|Failure| Rollback
-    Monitor -->|Success| Complete[Complete]
+```bash
+make deploy         # npm install, then wrangler deploy
 ```
 
-## Component Responsibilities
+Notes:
 
-| Component | Responsibility | Technology |
-|-----------|---------------|------------|
-| Cloudflare Worker | Request routing, auth, API aggregation | TypeScript, Hono |
-| Durable Objects | Real-time state, WebSocket coordination | TypeScript, SQLite |
-| D1 Database | Persistent relational data | SQLite |
-| KV Store | Cached configs, session data | Key-Value |
-| R2 Storage | File uploads, exports | S3-compatible |
-| Queues | Async processing, analytics | Message Queue |
-| Workers AI | ML inference, embeddings | Llama, Embeddings |
-| Prefect | Scheduled ETL, data pipelines | Python |
+- The Dockerfile installs the CPU-only torch wheel. The default wheel
+  pulls in about 4 GB of CUDA libraries.
+- The Cloudflare registry drops uploads of layers above about 100 MB
+  compressed. The Dockerfile ships the Python packages in several layers
+  and splits `libtorch_cpu.so` into four chunks. `entrypoint.sh` joins
+  them on first start.
+- If a push fails with `use of closed network connection`, run the deploy
+  again. Pushed layers stay in the registry.
 
-## Scaling Considerations
+## Files
 
-```mermaid
-graph TD
-    Load[Incoming Load] --> CF[Cloudflare Edge<br/>Auto-scales]
-    CF --> Worker[Workers<br/>Per-request isolate]
-    Worker --> DO[Durable Objects<br/>Per-room scaling]
-    Worker --> D1[D1<br/>Read replicas]
-    Worker --> KV[KV<br/>Global replication]
-    Worker --> Queue[Queues<br/>Backpressure handling]
-
-    style CF fill:#f9f,stroke:#333
-    style Worker fill:#bbf,stroke:#333
-    style DO fill:#bfb,stroke:#333
-```
-
-## Monitoring & Observability
-
-```mermaid
-graph LR
-    subgraph "Metrics"
-        WMetrics[Worker Metrics]
-        DOMetrics[DO Metrics]
-        D1Metrics[D1 Metrics]
-        QMetrics[Queue Metrics]
-    end
-
-    subgraph "Logs"
-        WLogs[Worker Logs]
-        Tail[Tail Workers]
-    end
-
-    subgraph "Tracing"
-        Trace[Distributed Traces]
-    end
-
-    subgraph "Alerting"
-        Alert[Alert Rules]
-        Pager[PagerDuty / Slack]
-    end
-
-    WMetrics --> Alert
-    DOMetrics --> Alert
-    D1Metrics --> Alert
-    QMetrics --> Alert
-    WLogs --> Tail
-    Tail --> Trace
-    Trace --> Alert
-    Alert --> Pager
-```
-
-## Security Boundaries
-
-```mermaid
-graph TB
-    subgraph "Public Internet"
-        Attacker[🌐 Attacker]
-        User[👤 User]
-    end
-
-    subgraph "DMZ - Cloudflare Edge"
-        WAF[WAF Rules]
-        RateLimit[Rate Limiting]
-        BotMgmt[Bot Management]
-    end
-
-    subgraph "Application Zone"
-        Worker[Worker<br/>Zero Trust]
-        Auth[Auth Validation]
-    end
-
-    subgraph "Data Zone"
-        D1[(D1<br/>Private Network)]
-        KV[(KV<br/>Encrypted)]
-        R2[(R2<br/>Signed URLs)]
-    end
-
-    User --> WAF
-    Attacker -.->|Blocked| WAF
-    WAF --> RateLimit
-    RateLimit --> BotMgmt
-    BotMgmt --> Worker
-    Worker --> Auth
-    Auth --> D1
-    Auth --> KV
-    Auth --> R2
-```
-
-## Environment Configuration
-
-```mermaid
-graph LR
-    subgraph "Development"
-        DevWorker[Worker Dev]
-        DevD1[D1 Local]
-        DevKV[KV Local]
-    end
-
-    subgraph "Staging"
-        StagingWorker[Worker Preview]
-        StagingD1[D1 Staging]
-        StagingKV[KV Staging]
-    end
-
-    subgraph "Production"
-        ProdWorker[Worker Prod]
-        ProdD1[D1 Prod]
-        ProdKV[KV Prod]
-    end
-
-    DevWorker --> DevD1
-    DevWorker --> DevKV
-    StagingWorker --> StagingD1
-    StagingWorker --> StagingKV
-    ProdWorker --> ProdD1
-    ProdWorker --> ProdKV
-```
-
----
-
-*Generated with Mermaid.js - View in any Markdown renderer with Mermaid support (GitHub, GitLab, VS Code, Notion, Obsidian)*
+| File | Purpose |
+| --- | --- |
+| `hello_rewards.py` | Pydantic models, license factors, `calculate_rewards`, worked example |
+| `unified_hello.py` | Lightning training loop with per-epoch rewards |
+| `server.py` | FastAPI app, in-memory stores, HTMX routes, README page |
+| `templates/` | Jinja2 templates for the HTMX UI |
+| `macbeth.json` | Seed content: Macbeth speeches with per-speech licenses |
+| `src/index.ts` | Cloudflare Worker that routes to the container |
+| `Dockerfile`, `entrypoint.sh` | Container image for Cloudflare |
+| `wrangler.toml` | Worker and container configuration |
