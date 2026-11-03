@@ -26,3 +26,7 @@ new_sqlite_classes = ["SovsrcApiContainer"]
 
 [vars]
 ENVIRONMENT = "production"
+# Cloudflare Access gateway for /mcp. scripts/access_gateway.py fills these.
+# While they are empty, the Worker answers /mcp with 403.
+TEAM_DOMAIN = ""
+POLICY_AUD = ""

@@ -214,6 +214,33 @@ claude mcp add sovsrc-rewards -- python /path/to/sovsrc.si.core/mcp_stdio.py
 
 Resource `sovsrc://ontology` returns the JSON schema of the models.
 
+### Access gateway for the MCP endpoint
+
+Cloudflare Access protects `/mcp`. Two layers enforce it:
+
+1. A self-hosted Access application for `hello.sovsrc.si/mcp` with Managed
+   OAuth on. An MCP client gets a `401` with a `WWW-Authenticate` header,
+   opens the browser for the Access login, and then sends an OAuth token.
+   Access checks the policy and forwards the user JWT to the Worker in the
+   `Cf-Access-Jwt-Assertion` header.
+2. The Worker in `src/index.ts` verifies that JWT against the team domain
+   JWKS and the application AUD before it forwards `/mcp` requests to the
+   container. This also covers the `workers.dev` hostname, which Access
+   does not front. The container receives the verified email in the
+   `X-Access-User` header. Other paths stay public.
+
+Create the Access application with the script. The API token needs the
+permission `Access: Apps and Policies Write`.
+
+```bash
+export CLOUDFLARE_API_TOKEN=...
+python scripts/access_gateway.py --email you@example.com
+make deploy
+```
+
+The script writes `TEAM_DOMAIN` and `POLICY_AUD` into `wrangler.toml`.
+While those two values are empty, the Worker answers `/mcp` with `403`.
+
 ## Run locally
 
 ```bash
@@ -264,6 +291,7 @@ Notes:
 | `mcp_stdio.py` | Run the MCP server over stdio |
 | `templates/` | Jinja2 templates for the HTMX UI |
 | `macbeth.json` | Seed content: Macbeth speeches with per-speech licenses |
-| `src/index.ts` | Cloudflare Worker that routes to the container |
+| `src/index.ts` | Cloudflare Worker that verifies the Access JWT on `/mcp` and routes to the container |
+| `scripts/access_gateway.py` | Create the Access application for `/mcp` and write its values to `wrangler.toml` |
 | `Dockerfile`, `entrypoint.sh` | Container image for Cloudflare |
 | `wrangler.toml` | Worker and container configuration |
